@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Windows Filename Sanitizer</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f8f9fa;
+        --fg: #212529;
+        --accent: #0078d4;
+        --border: #d0d7de;
+        --radius: 10px;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 40px 20px;
+      }
+      h1 {
+        margin-bottom: 24px;
+        font-size: 1.8rem;
+        font-weight: 600;
+      }
+      textarea,
+      input {
+        width: 100%;
+        max-width: 700px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        font-size: 1rem;
+        padding: 12px 14px;
+        box-sizing: border-box;
+        background: white;
+        color: var(--fg);
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+      textarea:focus,
+      input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.25);
+        outline: none;
+      }
+      button {
+        margin: 16px 0;
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: var(--radius);
+        padding: 10px 20px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: background 0.2s, transform 0.1s;
+      }
+      button:hover {
+        background: #005fa3;
+      }
+      button:active {
+        transform: scale(0.98);
+      }
+      .container {
+        width: 100%;
+        max-width: 700px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      label {
+        font-weight: 500;
+        margin-top: 12px;
+      }
+      #output {
+        background: #f1f3f4;
+        color: #111;
+        font-family: monospace;
+      }
+      footer {
+        margin-top: 40px;
+        font-size: 0.9rem;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Windows Filename Sanitizer</h1>
+    <div class="container">
+      <label for="input">Enter text to sanitize:</label>
+      <textarea
+        id="input"
+        rows="4"
+        placeholder="Paste or type text here..."
+      ></textarea>
+
+      <button id="sanitize">Sanitize</button>
+
+      <label for="output">Sanitized filename:</label>
+      <div style="display: flex; gap: 8px; width: 100%">
+        <input
+          id="output"
+          type="text"
+          readonly
+          placeholder="Result appears here"
+          style="flex: 1"
+        />
+        <button id="copy" title="Copy to clipboard" style="margin: 0">
+          Copy
+        </button>
+      </div>
+    </div>
+
+    <footer>
+      Removes invalid characters, reserved names, and trims length safely for
+      Windows 10.
+    </footer>
+
+    <script>
+      (function () {
+        const reservedRegex =
+          /^(?:(?:(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9]))(?:\..*)?)$/i;
+        const forbiddenChars = /[<>:"\/\\|?*\u0000-\u001F]/g;
+        const trailingDotsSpaces = /[.\s]+$/;
+        const MAX_FILENAME = 255;
+
+        function sanitizeFilename(input) {
+          if (input == null) return "";
+          let s = String(input).normalize("NFKC").trim();
+
+          // Replace forbidden characters with spaces
+          s = s.replace(forbiddenChars, " ");
+
+          // Collapse multiple spaces
+          s = s.replace(/\s{2,}/g, " ").replace(trailingDotsSpaces, "");
+
+          if (s === "") s = " ";
+
+          const lastDot = s.lastIndexOf(".");
+          let name = s,
+            ext = "";
+          if (lastDot > 0) {
+            name = s.slice(0, lastDot);
+            ext = s.slice(lastDot);
+          }
+
+          if (reservedRegex.test(s)) s = " " + s;
+
+          const maxNameLen = MAX_FILENAME - ext.length;
+          if (name.length > maxNameLen)
+            name = [...name].slice(0, maxNameLen).join("");
+          s = name + ext;
+
+          if (/^[.]+$/.test(s)) s = " " + s;
+          return s;
+        }
+
+        const input = document.getElementById("input");
+        const output = document.getElementById("output");
+        const button = document.getElementById("sanitize");
+
+        const update = () => (output.value = sanitizeFilename(input.value));
+        button.addEventListener("click", update);
+        input.addEventListener("input", update);
+
+        // Copy button functionality
+        const copyButton = document.getElementById("copy");
+        copyButton.addEventListener("click", async () => {
+          const text = output.value;
+          try {
+            await navigator.clipboard.writeText(text);
+            const originalText = copyButton.textContent;
+            copyButton.textContent = "Copied!";
+            setTimeout(() => {
+              copyButton.textContent = originalText;
+            }, 2000);
+          } catch (err) {
+            // Fallback for older browsers
+            output.select();
+            try {
+              document.execCommand("copy");
+              const originalText = copyButton.textContent;
+              copyButton.textContent = "Copied!";
+              setTimeout(() => {
+                copyButton.textContent = originalText;
+              }, 2000);
+            } catch (err) {
+              alert("Failed to copy text");
+            }
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>
