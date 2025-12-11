@@ -124,48 +124,37 @@
         const forbiddenChars = /[<>:"\/\\|?*\u0000-\u001F]/g;
         const trailingDotsSpaces = /[.\s]+$/;
         const MAX_FILENAME = 255;
-
+        
 function sanitizeFilename(input) {
   if (!input) return "untitled";
 
-  let s = String(input)
-    .normalize("NFKC");
+  let s = String(input).normalize("NFKC");
 
-  // Remove zero-width / invisible chars
+  // remove zero-width/invisible chars
   s = s.replace(/[\u200B-\u200F\uFEFF\u2060]/g, "");
 
-  // Remove forbidden for Windows + Obsidian
+  // forbid Windows + Obsidian
   s = s.replace(/[<>:"/\\|?*\u0000-\u001F]/g, "");
 
-  // Replace Unicode lookalike slashes/quotes
-  s = s
-    .replace(/[⁄∕⌿⧵⧹]/g, "-")
-    .replace(/[“”„‟]/g, "'")
-    .replace(/[’`]/g, "'");
+  // normalize ellipsis and repeated punctuation
+  s = s.replace(/…/g, "...");     // ellipsis to dots
+  s = s.replace(/\.{3,}/g, "..."); // collapse long dot runs
 
-  // Remove emojis (extended plane)
-  s = s.replace(/[\u{1F000}-\u{10FFFF}]/gu, "");
-
-  // Collapse spaces
+  // collapse whitespace
   s = s.replace(/\s+/g, " ").trim();
 
-  // Remove trailing dots/spaces
+  // remove trailing spaces/dots
   s = s.replace(/[.\s]+$/g, "");
 
   if (!s) s = "untitled";
 
-  // Prevent reserved names
-  const reserved = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i;
-  if (reserved.test(s)) s = "_" + s;
+  // reserved names
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(s)) {
+    s = "_" + s;
+  }
 
-  // Ensure Obsidian-safe extension handling
-  if (s.toLowerCase().endsWith(".md"))
-    s = s.slice(0, -3).replace(/[.\s]+$/g, "") + ".md";
-
-  // Length guard
-  const MAX = 200;
-  if (s.length > MAX)
-    s = s.slice(0, MAX).trim();
+  // length cap
+  if (s.length > 200) s = s.slice(0, 200).trim();
 
   return s;
 }
